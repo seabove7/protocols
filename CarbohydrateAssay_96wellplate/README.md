@@ -5,4 +5,4 @@ Modified by Colleen B Bove and Justin H Baumann
 
 ---
 
-**For the published protocol, see [dx.doi.org/10.17504/protocols.io.bvb9n2r6](dx.doi.org/10.17504/protocols.io.bvb9n2r6)**
+**For the published protocol, see [dx.doi.org/10.17504/protocols.io.bvb9n2r6](https://www.protocols.io/view/coral-carbohydrate-assay-for-96-well-plates-bvb9n2r6)**
