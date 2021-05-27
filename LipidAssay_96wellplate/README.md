@@ -1,7 +1,5 @@
 # Lipid assay of coral host tissue in 96-well plates
 
-*Modified by Colleen B Bove and Justin H Baumann*
-
 ## Files included in folder
 1. PDF version of protocol for lipid assay lab work (*Colorimetric Lipid Assay for Corals.pdf*)
 2. Lipid correction/calculation Rmarkdown script (*Lipid Calculation Script.Rmd*)
