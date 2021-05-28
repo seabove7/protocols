@@ -1,0 +1,239 @@
+---
+title: "Colormetric Carbohydrate Concentration Calculation"
+output: 
+  html_document:
+    theme: spacelab
+---
+
+<style>
+  body{background-color: aliceblue !important}
+</style>
+
+```{r setup info, echo = FALSE}
+
+## If standards look good, you should only need to update this code chunk with your output file name, plate file name, and sample names (can use 'dummy' sample names if preferred).
+
+## I have included a sample plate for practice:
+# filename <- "Plate14_carbohydrate_21Oct19" 
+# filename <- "Bove_Plate8_07Aug19"
+# coral_ID  <- c("CNPD6", "CFPB9", "CNPB8", "CFPA9", "CFPD7", "CNPE6", "CFPA12", "CNPE5", "CFPC11", "CNPD8", "CFPA1", "CFPD9", "CFPA22", "CFPB1", "CNPD2", "CFPE8", "CNPB1", "CNPD7", "CFPF1", "CNPF1", "CFPF7", "CFPA3", "CFPA6") 
+
+filename <- "Bove_Plate8_07Aug19" # name of carb file
+
+# Input the coral IDs for all samples on plate (for carbohydrates, it is a max of 24 actual samples)
+coral_ID  <- c("CNPD6", "CFPB9", "CNPB8", "CFPA9", "CFPD7", "CNPE6", "CFPA12", "CNPE5", "CFPC11", "CNPD8", "CFPA1", "CFPD9", "CFPA22", "CFPB1", "CNPD2", "CFPE8", "CNPB1", "CNPD7", "CFPF1", "CNPF1", "CFPF7", "CFPA3", "CFPA6") # sample names in order 
+
+
+## Below is for naming/saving files
+# Plot:
+date <- Sys.Date() # pulls the current date (format: YEAR-MONTH-DAY)
+fig <- paste(filename, "STD.plot", date, sep="_") # creates label for saving plot of standards
+fig <- paste(fig, ".pdf", sep="") # adds .pdf extension
+
+# CSV of calculated values
+csvFileName <- paste(filename, date, sep="_") 
+csvFileName <- paste(csvFileName, ".csv", sep="") 
+
+```
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+
+```
+
+<br/>
+
+**Sample of how 96-well plate was filled with standards and samples (if run with triplicates)**
+
+|  | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+|--------|--------|--------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|
+| **A** | **Blank** | **Blank** | **Blank** | Std 8a | Std 8b | Std 8c | Samp 7a   | Samp 7b  | Samp 7c  | Samp 15a | Samp 15b | Samp 15c |
+| **B** | Std 1a | Std 1b | Std 1c | Std 9a | Std 9b | Std 9c | Samp 8a | Samp 8b | Samp 8c | Samp 16a | Samp 16b | Samp 16c |
+| **C** | Std 2a | Std 2b | Std 2c | Samp 1a | Samp 1b | Samp 1c | Samp 9a | Samp 9b | Samp 9c | Samp 17a | Samp 17b | Samp 17c |
+| **D** | Std 3a | Std 3b | Std 3c | Samp 2a | Samp 2b | Samp 2c | Samp 10a | Samp 10b | Samp 10c | Samp 18a | Samp 18b | Samp 18c |
+| **E** | Std 4a | Std 4b | Std 4c | Samp 3a | Samp 3b | Samp 3c | Samp 11a | Samp 11b | Samp 11c | Samp 19a | Samp 19b | Samp 19c |
+| **F** | Std 5a | Std 5b | Std 5c | Samp 4a | Samp 4b | Samp 4c | Samp 12a | Samp 12b | Samp 12c | Samp 20a | Samp 20b | Samp 20c |
+| **G** | Std 6a | Std 6b | Std 6c | Samp 5a | Samp 5b | Samp 5c | Samp 13a | Samp 13b | Samp 13c | Samp 21a | Samp 21b | Samp 21c |
+| **H** | Std 7a | Std 7b | Std 7c | Samp 6a | Samp 6b | Samp 6c | Samp 14a | Samp 14b | Samp 14c | Samp 22a | Samp 22b | Samp 22c |
+
+
+
+<br/>
+
+### **Sample run**: `r filename`
+```{r libraries, include=FALSE}
+
+library("tidyverse")
+library("ggplot2")
+library("kableExtra")
+library("plotly")
+library("shiny")
+
+```
+
+
+```{r setup plates, echo=FALSE, message=FALSE}
+
+# add '.csv' extension to file names
+file <- paste(filename, ".csv", sep="")
+
+# read in both first and second plate reads into dataframes
+df <- read_csv(file, col_names = FALSE)
+
+# subset dataframes to select for 'raw data' output from each
+df <- df[-c(1:20, 29:40),-1] # selectes the desired 'plate' portion of file (we are using the blank-corrected one here)
+#df <- df[-c(1:23, 32:42), -c(1,14:15)] # Use this one if saved as .xls instead of .csv initially
+
+# convert all values to numerics
+df <- mutate_all(df, function(x) as.numeric(as.character(x)))
+
+```
+
+```{r convert from plate to column format, echo=FALSE}
+
+# pull replicate columns
+df1 <- df[,1:3] # pulls the first 3 rows (replicates)
+df2 <- df[,4:6] # pulls next 3 rows (replicates)
+df3 <- df[,7:9] # pulls next 3 rows (replicates)
+df4 <- df[,10:12] # pulls last 3 rows (replicates)
+
+# renames the columns by read/replicate number
+colnames(df1) <- c("read_1","read_2","read_3")
+colnames(df2) <- c("read_1","read_2","read_3")
+colnames(df3) <- c("read_1","read_2","read_3")
+colnames(df4) <- c("read_1","read_2","read_3")
+
+df_all <- rbind(df1, df2, df3, df4)[-c(1),] # combine all above df into a single one and remove 1st row
+
+df_all <- tibble::rowid_to_column(df_all, "Sample_ID") # add row number
+df_all$Sample_ID <- as.factor(df_all$Sample_ID - 8) # subtracts 8 from numbers to account for standards
+
+```
+
+```{r blank calc and check, echo=FALSE}
+
+## Create df of std/sample identification
+pre <- "Std" # set the 'Std' prefix
+suf <- as.factor(seq(1:8)) # number of standards in the run
+std_nam <- seq(1:23) # number of samples
+num <- as.data.frame(std_nam) # make samples list to df
+num$std_nam <- as.factor(num$std_nam) # convert above df to factors
+std_nam <- paste(pre , suf, sep="_") # paste the prefix to the std runs, with '_' between them
+std_nam <- as.data.frame(std_nam) # name std names into df
+IDs <- rbind(std_nam, num) # combine stds with numbers # combine std names and numers into 1 df
+df_all$Sample_ID <- IDs$std_nam # replace sample ID with new ID column created above
+
+df_all$samp_type <- paste(c(rep("S", 8), rep("coral", 23))) # create column to ID sample vs std row
+
+## Add known standard concentrations (with NAs for samples)
+df_all$conc <- paste(c(0.00901, 0.01802, 0.02703, 0.03604, 0.05406, 0.0901, 0.1802, 0.3604, rep("NA", 23)))
+df_all$conc <- as.numeric(as.character(df_all$conc)) # convert concentrations to numerics
+
+df_all <- gather(df_all, read, absorb, read_1:read_3) # convert dataframe from wide to long
+
+stds <- subset(df_all, samp_type=="S") # subset df for standards only
+
+
+
+############
+
+## If you want to remove a value, select it with this code:
+#stds <- stds[-23,] # Use this to remove single really off STD values
+
+```
+
+
+```{r linear model, echo=FALSE}
+
+R2 <- summary(lm(conc ~ absorb, data=stds))$r.squared # pulls R squared value
+m <- summary(lm(conc ~ absorb, data=stds))$coefficients[2,1] # pulls the slope of line
+b <- summary(lm(conc ~ absorb, data=stds))$coefficients[1,1] # pulls the line's intercept
+
+```
+
+***
+
+<br/>
+
+### **Standard concentration equation**:
+
+$${y} = `r m` {x}+`r b`$$
+$$R^2 = `r R2`$$
+
+<br/>
+
+### **Interactive standards plot**:
+```{r standard plot, echo=FALSE}
+
+# the saved version
+conc_fig <- ggplot(stds, aes(absorb, conc, shape = read, group = samp_type))+
+  geom_point(size=3)+
+  geom_smooth(method="lm", se=F)+
+  ylab("Carbohydrate Concentration (mg/mL)")+
+  xlab("Absorbance (540 nm)")+
+  ggtitle(bquote("R"^2 == .(round(R2, 3))~ "    y" == .(round(m, 2))~"x + "~ .(round(b, 3))))+
+  theme_classic() +
+  ggsave(fig, width = 7, height = 3)
+
+# the interactive version
+conc_fig2 <- ggplot(stds, aes(absorb, conc, shape = read, group = samp_type))+
+  geom_point(size=3)+
+  geom_smooth(method="lm", se=F)+
+  ylab("Carbohydrate Concentration (mg/mL)")+
+  xlab("Absorbance (540 nm)")+
+  theme_classic()
+
+ggplotly(conc_fig2)
+
+```
+
+<br/>
+
+Subset of calculated sample concentrations:
+```{r saving final csv, echo = FALSE}
+
+corals <- subset(df_all, samp_type!="S") # subsets dataframe for coral values only
+corals$conc <- m * corals$absorb + b # calculates concentration of carbohydrate using linear model
+
+# unhash this line if working with less than full sample plate
+corals <- na.omit(corals)
+
+# adds the provided sample names in order of how they are input (make sure you do this in the correct order up front)
+corals$Sample_ID <- paste(rep(coral_ID, 3))
+
+## Construct final dataframe
+df_final <- rbind(stds, corals) # adds the standards and samples together
+df_final$plate <- filename # list the file ID as a new column 
+
+# View sample of values in the markdown document
+kable(df_final[28:37,-2], row.names = FALSE) %>%
+  kable_styling(font_size = 11, full_width = FALSE)
+
+## save the final dataframe as a CSV
+write.csv(df_final, file = csvFileName)  
+
+```
+
+***
+
+#### **Calculated Carbohydrate Concentration Output**: `r csvFileName`
+
+<br/>
+<br/>
+<br/>
+
+#### Session Info:
+
+Script written by [Colleen B. Bove](http://colleenbove.science) and was last updated on 27 May 2021.
+Feel free to contact with questions: colleenbove@gmail.com.
+
+```{r echo=FALSE}
+
+sessionInfo()
+
+```
