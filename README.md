@@ -1,8 +1,8 @@
 # Repository containing protocols from published and in-prep work
 
 ## Final protocols
-1. CarbohydrateAssay_96wellplate
-2. LipidAssay_96wellplate
+1. [CarbohydrateAssay_96wellplate](https://github.com/seabove7/protocols/tree/main/CarbohydrateAssay_96wellplate)
+2. [LipidAssay_96wellplate](https://github.com/seabove7/protocols/tree/main/LipidAssay_96wellplate)
   
   
   
